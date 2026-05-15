@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "tesseron/ruby"
+require "thor"
+
+module Tesseron
+  module Ruby
+    module CLI
+      class Gateway < Thor
+        desc "start URL", "Start the Tesseron MCP gateway, connecting to the app at URL"
+        option :name, type: :string, default: "tesseron-gateway",
+                      desc: "MCP server name"
+        def start(url)
+          bridge = Tesseron::Ruby::Gateway::McpBridge.new(
+            app_ws_url: url,
+            name: options[:name]
+          )
+          bridge.run
+        end
+
+        desc "version", "Print the tesseron-ruby version"
+        def version
+          puts Tesseron::Ruby::VERSION
+        end
+      end
+    end
+  end
+end
+
+Tesseron::Ruby::CLI::Gateway.start(ARGV)
