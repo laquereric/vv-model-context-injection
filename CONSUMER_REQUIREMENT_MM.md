@@ -13,7 +13,35 @@ lockstep.
   (Tesseron Ruby SDK as a substrate submodule)
 - MM plan that solidified the CR discipline: `docs/plans/PLAN_0_81_0.md`
   (this file is the Phase D backfill against tesseron-ruby)
+- MM plan that retired the Tesseron *doctrine*: `docs/plans/PLAN_0_82_1.md`
+  (Model-Context Injection supersedes Tesseron as the substrate's
+  framing doctrine; the **gem** remains pinned)
+- MM plan that authored this CR refresh: `docs/plans/PLAN_0_91_0.md`
 - Sibling consumers (if any): none registered
+
+> **Doctrine status (2026-05-25, PLAN_0_82_1).** The Tesseron doctrine
+> page this file cites (`docs/architecture/principles/tesseron.md`)
+> has been superseded by **Model-Context Injection**
+> (`docs/architecture/principles/model-context-injection.md`). The
+> **gem itself** (`tesseron-ruby`) remains pinned in
+> `server/Gemfile:91` — the substrate still consumes its surfaces.
+> Live consumer sites confirmed by `grep -rn '::Tesseron::Ruby'
+> server/` (2026-05-25):
+>
+> - `server/packs/platform/app/services/harness/tesseron/app.rb`
+>   — loads `::Tesseron::Ruby::Server::App`.
+> - `server/packs/platform/app/services/harness/tesseron/actions/*`
+>   — every action registers against the `::App` instance.
+> - `server/spec/architecture/tesseron_seam_audit_spec.rb`
+>   — pins the seam.
+>
+> This CR_MM documents the *narrowed* live consumer surface; the
+> broader doctrine framing has moved. The remainder of this file is
+> kept as-is — the surfaces named below are still consumed — with
+> the understanding that architectural-framing references should be
+> read through the MCB lens (`model-context-injection.md`
+> §"Substrate's harness primitives") rather than the original
+> Tesseron framing.
 
 > **Status note.** Locked-in for the Alpha distribution. The
 > substrate is the gem's primary consumer; the gem's surface
@@ -138,3 +166,7 @@ return-shape variance is what `Mm::LlmMock::ExtractText` decodes
   doctrine this gem implements one side of.
 - `server/packs/platform/app/services/harness/tesseron/` — every
   MM consumer of this gem lives under that path.
+
+## Last reviewed
+
+2026-05-25 against MM substrate commit `e66aa9d` per `docs/plans/PLAN_0_91_0.md` (Phase A).
