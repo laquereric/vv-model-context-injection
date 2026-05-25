@@ -3,21 +3,21 @@
 require "mcp"
 require_relative "websocket_transport"
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Client
-      # High-level MCP client that connects to a Tesseron MCP gateway using
+      # High-level MCP client that connects to a MCB MCP gateway using
       # the `mcp` gem's stdio transport.
       #
       # This is the agent-side client. It wraps MCP::Client to provide a
-      # Tesseron-flavoured API for listing and calling actions (MCP tools)
+      # MCB-flavoured API for listing and calling actions (MCP tools)
       # and reading resources.
       #
       # Usage:
       #
-      #   connection = Tesseron::Ruby::Client::Connection.new(
+      #   connection = Vv::Mcb::Client::Connection.new(
       #     command: "npx",
-      #     args: ["-y", "@tesseron/mcp"]   # or your Ruby gateway binary
+      #     args: ["-y", "@mcb/mcp"]   # or your Ruby gateway binary
       #   )
       #   connection.connect
       #
@@ -65,7 +65,7 @@ module Tesseron
           @mcp_client.tools
         end
 
-        # Invoke a Tesseron action by its MCP tool name.
+        # Invoke a MCB action by its MCP tool name.
         # The tool name follows the <app_id>__<action_name> convention.
         #
         # @param tool_name [String] e.g. "shop__searchProducts"
@@ -79,8 +79,8 @@ module Tesseron
           text_parts.join("\n")
         end
 
-        # Read a Tesseron resource by its URI.
-        # @param uri [String] e.g. "tesseron://shop/currentRoute"
+        # Read a MCB resource by its URI.
+        # @param uri [String] e.g. "mcb://shop/currentRoute"
         # @return [Array<Hash>] resource contents
         def read_resource(uri)
           @mcp_client.read_resource(uri)

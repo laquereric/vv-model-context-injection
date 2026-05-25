@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe Tesseron::Ruby::Protocol::ActionContext do
+RSpec.describe Vv::Mcb::Protocol::ActionContext do
   let(:progress_calls) { [] }
   let(:log_calls) { [] }
 

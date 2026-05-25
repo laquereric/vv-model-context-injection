@@ -5,11 +5,11 @@ require "securerandom"
 require_relative "../protocol/jsonrpc"
 require_relative "../protocol/pending_requests"
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Gateway
       # MCP bridge: runs as an MCP server (using the `mcp` gem) and connects
-      # to a Tesseron app over WebSocket, translating between the two protocols.
+      # to a MCB app over WebSocket, translating between the two protocols.
       #
       # Architecture:
       #
@@ -17,11 +17,11 @@ module Tesseron
       #       ↕  JSON-RPC over stdio / Streamable HTTP
       #   McpBridge  (this class)
       #       ↕  JSON-RPC over WebSocket
-      #   Tesseron app (Tesseron::Ruby::Server::App)
+      #   MCB app (Vv::Mcb::Server::App)
       #
       # The bridge:
       #   1. Opens a WebSocket connection to the app.
-      #   2. Waits for the tesseron/hello handshake.
+      #   2. Waits for the mcb/hello handshake.
       #   3. Registers each declared action as an MCP tool.
       #   4. When an MCP client calls a tool, sends actions/invoke to the app
       #      and waits for the response.
@@ -31,22 +31,22 @@ module Tesseron
       #
       # Usage:
       #
-      #   bridge = Tesseron::Ruby::Gateway::McpBridge.new(
+      #   bridge = Vv::Mcb::Gateway::McpBridge.new(
       #     app_ws_url: "ws://localhost:4000",
-      #     name: "tesseron-gateway"
+      #     name: "mcb-gateway"
       #   )
       #   bridge.run   # blocks; starts MCP server on stdio
       #
       class McpBridge
-        # @param app_ws_url [String] WebSocket URL of the Tesseron app
+        # @param app_ws_url [String] WebSocket URL of the MCB app
         # @param name [String] MCP server name
-        def initialize(app_ws_url:, name: "tesseron-gateway")
+        def initialize(app_ws_url:, name: "mcb-gateway")
           @app_ws_url = app_ws_url
           @name = name
           @pending = Protocol::PendingRequests.new
           @request_counter = 0
           @counter_mutex = Mutex.new
-          @app_meta = nil          # populated after tesseron/hello
+          @app_meta = nil          # populated after mcb/hello
           @registered_actions = {} # name => action wire descriptor
         end
 
@@ -61,7 +61,7 @@ module Tesseron
         private
 
         # ------------------------------------------------------------------ #
-        # WebSocket connection to the Tesseron app                            #
+        # WebSocket connection to the MCB app                            #
         # ------------------------------------------------------------------ #
 
         def connect_to_app
@@ -79,18 +79,18 @@ module Tesseron
                   msg = JSON.parse(event.data, symbolize_names: true)
                   dispatch_app_message(msg)
                 rescue JSON::ParserError => e
-                  warn "[tesseron-gateway] JSON parse error: #{e.message}"
+                  warn "[mcb-gateway] JSON parse error: #{e.message}"
                 end
               end
 
               @ws.on :close do |_event|
-                warn "[tesseron-gateway] WebSocket closed"
+                warn "[mcb-gateway] WebSocket closed"
                 @pending.reject_all
                 EM.stop
               end
 
               @ws.on :error do |event|
-                warn "[tesseron-gateway] WebSocket error: #{event.message}"
+                warn "[mcb-gateway] WebSocket error: #{event.message}"
               end
             end
           end
@@ -136,15 +136,15 @@ module Tesseron
         # ------------------------------------------------------------------ #
 
         def wait_for_hello
-          # The app sends tesseron/hello as a request; we wait for it.
-          # In the Tesseron protocol the app initiates hello, so we need to
+          # The app sends mcb/hello as a request; we wait for it.
+          # In the MCB protocol the app initiates hello, so we need to
           # intercept the first request message.
           hello_queue = Queue.new
           @hello_queue = hello_queue
 
           # Give the app up to 10 seconds to send hello
           msg = hello_queue.pop(timeout: 10)
-          raise "Timed out waiting for tesseron/hello" if msg.nil?
+          raise "Timed out waiting for mcb/hello" if msg.nil?
 
           params = msg[:params] || {}
           @app_meta = params[:app]
@@ -157,7 +157,7 @@ module Tesseron
         # Override dispatch to capture hello before it goes to pending
         alias_method :_original_dispatch, :dispatch_app_message
         def dispatch_app_message(msg)
-          if msg[:method] == "tesseron/hello" && @hello_queue
+          if msg[:method] == "mcb/hello" && @hello_queue
             @hello_queue.push(msg)
             @hello_queue = nil
             return
@@ -203,7 +203,7 @@ module Tesseron
         # Action invocation (called from MCP tool handler threads)           #
         # ------------------------------------------------------------------ #
 
-        # Invoke a Tesseron action on the connected app and return the result.
+        # Invoke a MCB action on the connected app and return the result.
         # Blocks the calling thread until the app responds.
         #
         # @param action_name [String]

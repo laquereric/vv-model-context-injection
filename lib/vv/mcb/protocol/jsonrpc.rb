@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Protocol
-      # Tesseron protocol version
+      # MCB protocol version
       PROTOCOL_VERSION = "1.1.0"
 
-      # JSON-RPC 2.0 error codes used by the Tesseron protocol
+      # JSON-RPC 2.0 error codes used by the MCB protocol
       module ErrorCodes
         PARSE_ERROR       = -32_700
         INVALID_REQUEST   = -32_600
@@ -14,7 +14,7 @@ module Tesseron
         INVALID_PARAMS    = -32_602
         INTERNAL_ERROR    = -32_603
 
-        # Tesseron-specific codes
+        # MCB-specific codes
         PROTOCOL_MISMATCH = -32_000
         CANCELLED         = -32_001
         TIMEOUT           = -32_002

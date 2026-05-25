@@ -2,7 +2,7 @@
 
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in tesseron-ruby.gemspec
+# Specify your gem's dependencies in vv-mcb.gemspec
 gemspec
 
 gem "rake", "~> 13.0"

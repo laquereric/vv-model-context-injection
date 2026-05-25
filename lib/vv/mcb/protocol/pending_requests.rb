@@ -2,8 +2,8 @@
 
 require "thread"
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Protocol
       # Thread-safe registry of in-flight JSON-RPC requests.
       # Each entry holds a queue that the response writer unblocks.

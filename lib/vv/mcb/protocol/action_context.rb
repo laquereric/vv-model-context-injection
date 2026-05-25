@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Protocol
       # Per-invocation context passed to action handlers.
-      # Mirrors the ctx object described in the Tesseron Action model spec.
+      # Mirrors the ctx object described in the MCB Action model spec.
       class ActionContext
         # @return [String] the invocation ID assigned by the gateway
         attr_reader :invocation_id

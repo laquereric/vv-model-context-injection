@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Protocol
-      # Represents a Tesseron resource: a readable, subscribable piece of app state.
+      # Represents a MCB resource: a readable, subscribable piece of app state.
       #
       # Usage (fluent builder):
       #
-      #   resource = Tesseron::Ruby::Protocol::Resource.new("currentRoute")
+      #   resource = Vv::Mcb::Protocol::Resource.new("currentRoute")
       #     .describe("URL the user is currently viewing")
       #     .read { "/home" }
       #     .subscribe { |emit| emit.call("/home") }
@@ -83,7 +83,7 @@ module Tesseron
           @subscribers.delete(callback)
         end
 
-        # Serialise this resource to the wire format used in tesseron/hello.
+        # Serialise this resource to the wire format used in mcb/hello.
         # @return [Hash]
         def to_wire
           h = { name: @name }

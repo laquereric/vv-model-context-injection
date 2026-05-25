@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe Tesseron::Ruby::Protocol::Action do
+RSpec.describe Vv::Mcb::Protocol::Action do
   subject(:action) { described_class.new("searchProducts") }
 
   describe "fluent builder" do
@@ -55,14 +55,14 @@ RSpec.describe Tesseron::Ruby::Protocol::Action do
 
   describe "#call" do
     it "invokes the registered handler with input and context" do
-      ctx = instance_double(Tesseron::Ruby::Protocol::ActionContext, cancelled?: false)
+      ctx = instance_double(Vv::Mcb::Protocol::ActionContext, cancelled?: false)
       action.handler { |input, _ctx| { result: input[:query].upcase } }
       result = action.call({ query: "ruby" }, ctx)
       expect(result).to eq({ result: "RUBY" })
     end
 
     it "raises ArgumentError when no handler is registered" do
-      ctx = instance_double(Tesseron::Ruby::Protocol::ActionContext, cancelled?: false)
+      ctx = instance_double(Vv::Mcb::Protocol::ActionContext, cancelled?: false)
       expect { action.call({}, ctx) }.to raise_error(ArgumentError, /No handler registered/)
     end
   end

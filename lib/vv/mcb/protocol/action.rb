@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Protocol
-      # Represents a Tesseron action: a named, typed, handler-backed operation
+      # Represents a MCB action: a named, typed, handler-backed operation
       # that the app exposes to the agent as an MCP tool.
       #
       # Usage (fluent builder):
       #
-      #   action = Tesseron::Ruby::Protocol::Action.new("searchProducts")
+      #   action = Vv::Mcb::Protocol::Action.new("searchProducts")
       #     .describe("Search the product catalog")
       #     .input_schema({ type: "object", properties: { query: { type: "string" } }, required: ["query"] })
       #     .output_schema({ type: "object", properties: { items: { type: "array" } } })
@@ -120,7 +120,7 @@ module Tesseron
           @handler_block.call(input, ctx)
         end
 
-        # Serialise this action to the wire format used in tesseron/hello.
+        # Serialise this action to the wire format used in mcb/hello.
         #
         # @return [Hash]
         def to_wire

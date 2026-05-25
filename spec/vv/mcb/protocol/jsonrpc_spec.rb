@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe Tesseron::Ruby::Protocol do
+RSpec.describe Vv::Mcb::Protocol do
   describe ".request" do
     it "builds a valid JSON-RPC 2.0 request" do
       msg = described_class.request(id: 1, method: "actions/invoke", params: { name: "test" })
@@ -41,7 +41,7 @@ RSpec.describe Tesseron::Ruby::Protocol do
     it "builds a valid JSON-RPC 2.0 error response" do
       msg = described_class.error_response(
         id: 4,
-        code: Tesseron::Ruby::Protocol::ErrorCodes::NOT_FOUND,
+        code: Vv::Mcb::Protocol::ErrorCodes::NOT_FOUND,
         message: "Unknown action",
         data: { action: "missing" }
       )

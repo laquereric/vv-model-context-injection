@@ -2,7 +2,7 @@
 
 This file records the surface
 [MagenticMarket](https://github.com/laquereric/magentic-market-ai)
-(the substrate; "MM" hereafter) consumes from `tesseron-ruby`.
+(the substrate; "MM" hereafter) consumes from `vv-mcb`.
 It exists so upstream changes can be checked against a written
 consumer expectation — **drift** between this file and the gem's
 actual behaviour signals work that needs to land in both repos
@@ -10,74 +10,51 @@ lockstep.
 
 - MM repo: <https://github.com/laquereric/magentic-market-ai>
 - MM plan that introduced this dependency: `docs/plans/PLAN_0_27_5j.md`
-  (Tesseron Ruby SDK as a substrate submodule)
+  (originally as `tesseron-ruby`, a Ruby SDK named after the
+  Tesseron client/server exchange protocol)
 - MM plan that solidified the CR discipline: `docs/plans/PLAN_0_81_0.md`
-  (this file is the Phase D backfill against tesseron-ruby)
-- MM plan that retired the Tesseron *doctrine*: `docs/plans/PLAN_0_82_1.md`
-  (Model-Context Injection supersedes Tesseron as the substrate's
-  framing doctrine; the **gem** remains pinned)
-- MM plan that authored this CR refresh: `docs/plans/PLAN_0_91_0.md`
+- MM plan that retired the Tesseron doctrine: `docs/plans/PLAN_0_82_1.md`
+  (the substrate's framing doctrine became Model-Context Injection
+  / MCB; the gem stayed pinned)
+- MM plan that renamed the gem + namespace: `docs/plans/PLAN_0_92_0.md`
+  (`tesseron-ruby` → `vv-mcb`; `::Tesseron::Ruby::*` → `::Vv::Mcb::*`;
+  GitHub repo renamed to `vv-model-context-injection`)
 - Sibling consumers (if any): none registered
-
-> **Doctrine status (2026-05-25, PLAN_0_82_1).** The Tesseron doctrine
-> page this file cites (`docs/architecture/principles/tesseron.md`)
-> has been superseded by **Model-Context Injection**
-> (`docs/architecture/principles/model-context-injection.md`). The
-> **gem itself** (`tesseron-ruby`) remains pinned in
-> `server/Gemfile:91` — the substrate still consumes its surfaces.
-> Live consumer sites confirmed by `grep -rn '::Tesseron::Ruby'
-> server/` (2026-05-25):
->
-> - `server/packs/platform/app/services/harness/tesseron/app.rb`
->   — loads `::Tesseron::Ruby::Server::App`.
-> - `server/packs/platform/app/services/harness/tesseron/actions/*`
->   — every action registers against the `::App` instance.
-> - `server/spec/architecture/tesseron_seam_audit_spec.rb`
->   — pins the seam.
->
-> This CR_MM documents the *narrowed* live consumer surface; the
-> broader doctrine framing has moved. The remainder of this file is
-> kept as-is — the surfaces named below are still consumed — with
-> the understanding that architectural-framing references should be
-> read through the MCB lens (`model-context-injection.md`
-> §"Substrate's harness primitives") rather than the original
-> Tesseron framing.
 
 > **Status note.** Locked-in for the Alpha distribution. The
 > substrate is the gem's primary consumer; the gem's surface
 > evolves through MM PR-pairs (gem repo + substrate). The
-> upstream's own roadmap lives at
-> `vendor/tesseron-ruby/docs/plans/` (per "gems do their own
-> planning"); MM declares what it currently exercises, no more.
+> upstream's own roadmap lives at `vendor/vv-mcb/docs/plans/`
+> (per "gems do their own planning"); MM declares what it
+> currently exercises, no more.
 
 ## How MM pins this gem
 
 ```ruby
 # server/Gemfile — local development (submodule checkout)
-gem "tesseron-ruby", path: "../vendor/tesseron-ruby"
+gem "vv-mcb", path: "../vendor/vv-mcb"
 
 # server/Gemfile — CI / production (pinned SHA, when path moves to git)
-# gem "tesseron-ruby", git: "https://github.com/laquereric/tesseron-ruby",
-#                     ref: "<sha>"
+# gem "vv-mcb", git: "https://github.com/laquereric/vv-model-context-injection",
+#               ref: "<sha>"
 ```
 
-`vendor/tesseron-ruby` is a tracked git submodule; the
-substrate's `Gemfile.lock` records the resolved version. CI
-clones submodules by default (`actions/checkout` with
-`submodules: 'true'`).
+`vendor/vv-mcb` is a tracked git submodule; the substrate's
+`Gemfile.lock` records the resolved version. CI clones submodules
+by default (`actions/checkout` with `submodules: 'true'`).
 
 ## Surfaces MM consumes
 
-The substrate's actual import surface is *narrower than the
-gem's full API*. MM uses:
+The substrate's actual import surface is *narrower than the gem's
+full API*. MM uses:
 
-### `::Tesseron::Ruby::Server::App`
+### `::Vv::Mcb::Server::App`
 
 The app-side Rack application class. Constructed once at boot in
-`server/packs/platform/app/services/harness/tesseron/app.rb`:
+`server/packs/platform/app/services/harness/mcb/app.rb`:
 
 ```ruby
-app = ::Tesseron::Ruby::Server::App.new(
+app = ::Vv::Mcb::Server::App.new(
   id:      "ai.magenticmarket.substrate",
   name:    "MagenticMarket",
   version: substrate_version,
@@ -107,11 +84,11 @@ journey_curate, flow_curate, etc.). MM relies on:
   parameter validation.
 - `.annotate(read_only:, destructive:, requires_confirmation:)`
   recording action-side hints surfaced to the agent. MM's
-  `Harness::Tesseron::ActorGate` reads these annotations.
+  `Harness::Mcb::ActorGate` reads these annotations.
 - `.handler { |input, ctx| … }` accepting a 2-arity block; the
   `ctx` object the block receives MUST respond to `progress`,
   `confirm`, `elicit`, `sample`. The substrate's `ctx.sample`
-  doctrine (see `docs/architecture/principles/tesseron.md`)
+  doctrine (see `docs/architecture/principles/model-context-injection.md`)
   depends on `sample` being available.
 
 ### `ctx` callback surface (from inside handlers)
@@ -137,8 +114,8 @@ return-shape variance is what `Mm::LlmMock::ExtractText` decodes
   fluent shape** — ~17 callsites would need lockstep updates.
 - **Removing `ctx.sample`** — the entire `substrate_summary` +
   `learning_propose_next` flow depends on it; per
-  `tesseron.md`, this is the substrate's only sanctioned LLM-
-  dispatch primitive.
+  `model-context-injection.md`, this is the substrate's only
+  sanctioned LLM-dispatch primitive.
 - **Changing `annotate` keyword args** (`read_only:`,
   `destructive:`, `requires_confirmation:`) — `ActorGate`'s gate
   decision reads these by exact name.
@@ -161,12 +138,15 @@ return-shape variance is what `Mm::LlmMock::ExtractText` decodes
 
 ## See also
 
-- `vendor/tesseron-ruby/README.md` — the gem's own contract.
-- `docs/architecture/principles/tesseron.md` — the substrate
-  doctrine this gem implements one side of.
-- `server/packs/platform/app/services/harness/tesseron/` — every
+- `vendor/vv-mcb/README.md` — the gem's own contract.
+- `docs/architecture/principles/model-context-injection.md` —
+  the substrate doctrine this gem implements one side of.
+- `docs/architecture/principles/tesseron.md` — the **retired**
+  doctrine page (preserved as historical record; do not write
+  new code against this framing).
+- `server/packs/platform/app/services/harness/mcb/` — every
   MM consumer of this gem lives under that path.
 
 ## Last reviewed
 
-2026-05-25 against MM substrate commit `e66aa9d` per `docs/plans/PLAN_0_91_0.md` (Phase A).
+2026-05-25 against MM substrate commit `87d84cf` per `docs/plans/PLAN_0_92_0.md` (Phase A).

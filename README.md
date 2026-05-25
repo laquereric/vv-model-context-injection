@@ -1,8 +1,8 @@
-# tesseron-ruby
+# vv-mcb
 
-A Ruby replica of the [Tesseron](https://brainblend-ai.github.io/tesseron/) client/server exchange protocol, built on top of the [`mcp`](https://rubygems.org/gems/mcp) gem (the official Ruby MCP SDK).
+A Ruby replica of the [MCB](https://brainblend-ai.github.io/mcb/) client/server exchange protocol, built on top of the [`mcp`](https://rubygems.org/gems/mcp) gem (the official Ruby MCP SDK).
 
-Tesseron lets you expose typed web-app actions to MCP-compatible AI agents (Claude Code, Cursor, Claude Desktop) over a WebSocket — no browser automation, no scraping, no Playwright.
+MCB lets you expose typed web-app actions to MCP-compatible AI agents (Claude Code, Cursor, Claude Desktop) over a WebSocket — no browser automation, no scraping, no Playwright.
 
 ---
 
@@ -11,15 +11,15 @@ Tesseron lets you expose typed web-app actions to MCP-compatible AI agents (Clau
 ```
 MCP client (Claude, Cursor, etc.)
     ↕  JSON-RPC over stdio / Streamable HTTP
-Tesseron::Ruby::Gateway::McpBridge   ← this gem
+Vv::Mcb::Gateway::McpBridge   ← this gem
     ↕  JSON-RPC 2.0 over WebSocket
-Tesseron::Ruby::Server::App          ← this gem (Rack app)
+Vv::Mcb::Server::App          ← this gem (Rack app)
     ↕  your Ruby business logic
 ```
 
 The **app side** (`Server::App`) is a Rack application that accepts WebSocket connections from the gateway. It registers actions and resources, handles invocations, and streams progress notifications.
 
-The **gateway side** (`Gateway::McpBridge`) is an MCP server (using the `mcp` gem) that connects to the app over WebSocket and translates MCP `tools/call` requests into Tesseron `actions/invoke` frames.
+The **gateway side** (`Gateway::McpBridge`) is an MCP server (using the `mcp` gem) that connects to the app over WebSocket and translates MCP `tools/call` requests into MCB `actions/invoke` frames.
 
 The **client side** (`Client::Connection`) is a thin wrapper around `MCP::Client` for agent-side usage.
 
@@ -30,13 +30,13 @@ The **client side** (`Client::Connection`) is a thin wrapper around `MCP::Client
 Add to your Gemfile:
 
 ```ruby
-gem "tesseron-ruby"
+gem "vv-mcb"
 ```
 
 Or install directly:
 
 ```bash
-gem install tesseron-ruby
+gem install vv-mcb
 ```
 
 ---
@@ -46,9 +46,9 @@ gem install tesseron-ruby
 ### 1 — Define your app (Rack `config.ru`)
 
 ```ruby
-require "tesseron/ruby"
+require "vv/mcb"
 
-app = Tesseron::Ruby::Server::App.new(id: "shop", name: "Acme Shop")
+app = Vv::Mcb::Server::App.new(id: "shop", name: "Acme Shop")
 
 # A plain action with streaming progress
 app.action("searchProducts")
@@ -96,15 +96,15 @@ bundle exec puma config.ru -p 4000
 ### 2 — Start the MCP gateway
 
 ```bash
-bundle exec tesseron-gateway start ws://localhost:4000
+bundle exec mcb-gateway start ws://localhost:4000
 ```
 
 Or from Ruby:
 
 ```ruby
-bridge = Tesseron::Ruby::Gateway::McpBridge.new(
+bridge = Vv::Mcb::Gateway::McpBridge.new(
   app_ws_url: "ws://localhost:4000",
-  name: "my-tesseron-gateway"
+  name: "my-mcb-gateway"
 )
 bridge.run  # blocks; starts MCP server on stdio
 ```
@@ -116,9 +116,9 @@ bridge.run  # blocks; starts MCP server on stdio
 ```json
 {
   "mcpServers": {
-    "tesseron": {
+    "mcb": {
       "command": "bundle",
-      "args": ["exec", "tesseron-gateway", "start", "ws://localhost:4000"]
+      "args": ["exec", "mcb-gateway", "start", "ws://localhost:4000"]
     }
   }
 }
@@ -149,7 +149,7 @@ Every message is a JSON-RPC 2.0 object sent as a single WebSocket text frame.
 
 | Method | Kind | Purpose |
 |---|---|---|
-| `tesseron/hello` | request | Register app, actions, resources, capabilities |
+| `mcb/hello` | request | Register app, actions, resources, capabilities |
 | `actions/progress` | notification | Streaming update during an invocation |
 | `actions/list_changed` | notification | Action list changed after hello |
 | `resources/updated` | notification | Push a new value to a subscriber |
@@ -188,18 +188,18 @@ Every message is a JSON-RPC 2.0 object sent as a single WebSocket text frame.
 
 ## API Reference
 
-### `Tesseron::Ruby::Server::App`
+### `Vv::Mcb::Server::App`
 
 The Rack application (app side of the WebSocket).
 
 ```ruby
-app = Tesseron::Ruby::Server::App.new(id: "myapp", name: "My App")
+app = Vv::Mcb::Server::App.new(id: "myapp", name: "My App")
 app.action("doSomething").describe("...").input_schema({...}).handler { |input, ctx| ... }
 app.resource("liveData").describe("...").read { current_value }.subscribe { |emit| ... }
 run app
 ```
 
-### `Tesseron::Ruby::Protocol::ActionContext` (`ctx`)
+### `Vv::Mcb::Protocol::ActionContext` (`ctx`)
 
 Passed to every action handler.
 
@@ -216,7 +216,7 @@ Passed to every action handler.
 | `ctx.elicit(message:, schema:)` | Ask the user for structured input |
 | `ctx.log(level:, message:, meta:)` | Emit a structured log message |
 
-### `Tesseron::Ruby::Protocol::Action` (fluent builder)
+### `Vv::Mcb::Protocol::Action` (fluent builder)
 
 | Method | Purpose |
 |---|---|
@@ -228,26 +228,26 @@ Passed to every action handler.
 | `.strict_output!` | Enforce output schema |
 | `.handler { |input, ctx| ... }` | Register the handler block |
 
-### `Tesseron::Ruby::Gateway::McpBridge`
+### `Vv::Mcb::Gateway::McpBridge`
 
-MCP server that bridges to the Tesseron app.
+MCP server that bridges to the MCB app.
 
 ```ruby
-bridge = Tesseron::Ruby::Gateway::McpBridge.new(
+bridge = Vv::Mcb::Gateway::McpBridge.new(
   app_ws_url: "ws://localhost:4000",
-  name: "tesseron-gateway"
+  name: "mcb-gateway"
 )
 bridge.run  # blocks
 ```
 
-### `Tesseron::Ruby::Client::Connection`
+### `Vv::Mcb::Client::Connection`
 
 Agent-side MCP client wrapper.
 
 ```ruby
-conn = Tesseron::Ruby::Client::Connection.new(
+conn = Vv::Mcb::Client::Connection.new(
   command: "bundle",
-  args: ["exec", "tesseron-gateway", "start", "ws://localhost:4000"]
+  args: ["exec", "mcb-gateway", "start", "ws://localhost:4000"]
 )
 conn.connect
 conn.actions.each { |a| puts a.name }

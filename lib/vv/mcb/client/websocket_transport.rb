@@ -4,8 +4,8 @@ require "faye/websocket"
 require "eventmachine"
 require "json"
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Client
       class WebsocketTransport
         def initialize(url)

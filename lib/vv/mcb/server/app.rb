@@ -11,14 +11,14 @@ require_relative "../protocol/resource"
 require_relative "../protocol/pending_requests"
 require_relative "websocket_transport"
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Server
       # Rack application that accepts WebSocket connections from the MCP gateway.
-      # Implements the app-side of the Tesseron protocol:
+      # Implements the app-side of the MCB protocol:
       #
       #   1. Accepts a WebSocket upgrade from the gateway.
-      #   2. Sends tesseron/hello to register the app, its actions, and resources.
+      #   2. Sends mcb/hello to register the app, its actions, and resources.
       #   3. Handles actions/invoke, resources/read, resources/subscribe, and
       #      resources/unsubscribe requests from the gateway.
       #   4. Sends actions/progress notifications during long-running handlers.
@@ -26,9 +26,9 @@ module Tesseron
       #
       # Example (Rack config.ru):
       #
-      #   require "tesseron/ruby"
+      #   require "vv/mcb"
       #
-      #   app = Tesseron::Ruby::Server::App.new(id: "shop", name: "Acme Shop")
+      #   app = Vv::Mcb::Server::App.new(id: "shop", name: "Acme Shop")
       #
       #   app.action("searchProducts")
       #      .describe("Search the product catalog")
@@ -98,12 +98,12 @@ module Tesseron
           end
 
           transport.on_error do |err|
-            warn "[tesseron] WebSocket error on session #{session_id}: #{err.message}"
+            warn "[mcb] WebSocket error on session #{session_id}: #{err.message}"
           end
 
           @sessions[session_id] = { transport: transport, pending: pending }
 
-          # Send tesseron/hello immediately after the connection opens
+          # Send mcb/hello immediately after the connection opens
           send_hello(transport)
 
           ws.rack_response
@@ -123,7 +123,7 @@ module Tesseron
           id = next_id
           payload = Protocol.request(
             id: id,
-            method: "tesseron/hello",
+            method: "mcb/hello",
             params: {
               protocolVersion: Protocol::PROTOCOL_VERSION,
               app: { id: @id, name: @name },
@@ -163,7 +163,7 @@ module Tesseron
           params = message[:params] || {}
 
           if message.key?(:result) || message.key?(:error)
-            # This is a response to a request we sent (e.g. tesseron/hello ack,
+            # This is a response to a request we sent (e.g. mcb/hello ack,
             # sampling/request, elicitation/request)
             pending.resolve(id, message)
             return

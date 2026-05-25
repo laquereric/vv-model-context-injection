@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe Tesseron::Ruby::Protocol::PendingRequests do
+RSpec.describe Vv::Mcb::Protocol::PendingRequests do
   subject(:pending) { described_class.new }
 
   describe "#register and #resolve" do
@@ -28,7 +28,7 @@ RSpec.describe Tesseron::Ruby::Protocol::PendingRequests do
       Thread.new { sleep 0.01; pending.reject_all }
 
       expect { pending.wait(queue, timeout: 2) }.to raise_error(
-        Tesseron::Ruby::Protocol::PendingRequests::TransportClosedError
+        Vv::Mcb::Protocol::PendingRequests::TransportClosedError
       )
     end
   end

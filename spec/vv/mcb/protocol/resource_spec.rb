@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe Tesseron::Ruby::Protocol::Resource do
+RSpec.describe Vv::Mcb::Protocol::Resource do
   subject(:resource) { described_class.new("currentRoute") }
 
   describe "fluent builder" do

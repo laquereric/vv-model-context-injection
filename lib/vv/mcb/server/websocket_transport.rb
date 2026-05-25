@@ -3,8 +3,8 @@
 require "faye/websocket"
 require "json"
 
-module Tesseron
-  module Ruby
+module Vv
+  module Mcb
     module Server
       class WebsocketTransport
         def initialize(ws)

@@ -1,23 +1,23 @@
 # frozen_string_literal: true
 
-require_relative "lib/tesseron/ruby/version"
+require_relative "lib/vv/mcb/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "tesseron-ruby"
-  spec.version = Tesseron::Ruby::VERSION
+  spec.name = "vv-mcb"
+  spec.version = Vv::Mcb::VERSION
   spec.authors = ["Manus AI"]
   spec.email = ["support@manus.im"]
 
-  spec.summary = "Ruby replica of the Tesseron client/server exchange protocol"
+  spec.summary = "Ruby replica of the Model-Context Injection (MCB) client/server exchange protocol"
   spec.description = "Expose typed web-app actions to MCP-compatible AI agents over WebSocket using existing RAIL MCP gems."
-  spec.homepage = "https://github.com/brainblend-ai/tesseron"
+  spec.homepage = "https://github.com/brainblend-ai/mcb"
   spec.required_ruby_version = ">= 3.0.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/brainblend-ai/tesseron"
-  spec.metadata["changelog_uri"] = "https://github.com/brainblend-ai/tesseron/blob/main/CHANGELOG.md"
+  spec.metadata["source_code_uri"] = "https://github.com/brainblend-ai/mcb"
+  spec.metadata["changelog_uri"] = "https://github.com/brainblend-ai/mcb/blob/main/CHANGELOG.md"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
