@@ -51,6 +51,27 @@ RSpec.describe Vv::Mcb::Protocol::Action do
       expect(action.describe("test")).to be(action)
       expect(action.timeout(ms: 1000)).to be(action)
     end
+
+    describe "#domain" do
+      it "defaults to nil" do
+        expect(action.domain).to be_nil
+      end
+
+      it "is a setter when called with an argument and returns self" do
+        expect(action.domain("summary")).to be(action)
+        expect(action.domain).to eq("summary")
+      end
+
+      it "coerces non-string values via #to_s" do
+        action.domain(:learning)
+        expect(action.domain).to eq("learning")
+      end
+
+      it "is overwritable" do
+        action.domain("a").domain("b")
+        expect(action.domain).to eq("b")
+      end
+    end
   end
 
   describe "#call" do

@@ -65,6 +65,12 @@ module Vv
           act
         end
 
+        # @return [Array<Protocol::Action>] the registered actions in declaration order.
+        #   Iterable surface relied on by `Vv::Mcb::Gateway::WebmcpBridge::McbAdapter`.
+        def actions
+          @actions.values
+        end
+
         # Register a new resource using the fluent builder.
         # @param resource_name [String]
         # @return [Protocol::Resource]

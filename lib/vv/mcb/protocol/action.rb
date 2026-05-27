@@ -44,6 +44,7 @@ module Vv
         def initialize(name)
           @name = name.to_s
           @description = nil
+          @domain = nil
           @input_json_schema = nil
           @output_json_schema = nil
           @annotations = {}
@@ -57,6 +58,17 @@ module Vv
         # @return [self]
         def describe(text)
           @description = text
+          self
+        end
+
+        # WebMCP domain segment for the bridge's `mm.<domain>.<name>` URI scheme.
+        # Reader when called with no argument; setter (returns self) otherwise.
+        # @param value [String, Symbol, nil]
+        # @return [String, self]
+        def domain(value = nil)
+          return @domain if value.nil?
+
+          @domain = value.to_s
           self
         end
 

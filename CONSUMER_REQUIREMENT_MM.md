@@ -91,6 +91,82 @@ journey_curate, flow_curate, etc.). MM relies on:
   doctrine (see `docs/architecture/principles/model-context-injection.md`)
   depends on `sample` being available.
 
+### `::Vv::Mcb::Protocol::Action#domain`
+
+Added per `magentic-market-ai/docs/plans/PLAN_0_93_0.md` (Phase A). The
+`WebmcpBridge` composes WebMCP tool names as `mm.<domain>.<action>`, so
+every MM action declaration tags a domain:
+
+```ruby
+app.action("substrate_summary")
+  .domain("summary")
+  .describe(...).input_schema(...).handler { … }
+```
+
+MM relies on:
+
+- `.domain(value)` accepting a String or Symbol, coercing via `#to_s`,
+  and returning the builder for chaining.
+- `.domain` (no arg) returning the stored domain string (or nil if unset).
+- `WebmcpBridge::McbAdapter` reading `#domain` directly off the Action.
+- A domain being set before the bridge mounts — the bridge raises
+  `WebmcpBridge::MissingDomain` otherwise.
+
+### `::Vv::Mcb::Server::App#actions`
+
+Iterable surface added per PLAN_0_93_0 (Phase A). Returns the registered
+Action builders in declaration order so the WebMCP adapter can enumerate
+them:
+
+```ruby
+app.actions.each { |a| ... }  # => Array<Vv::Mcb::Protocol::Action>
+```
+
+MM relies on:
+
+- `App#actions` returning an Array (or any Enumerable) of `Protocol::Action`.
+- Declaration order being preserved so the tool catalogue is stable.
+
+### `::Vv::Mcb::Gateway::WebmcpBridge`
+
+Added per PLAN_0_93_0 Phase A. Aggregates one or more registry adapters
+and emits a per-session JS bundle that calls
+`navigator.modelContext.registerTool` once per tool. MM constructs it in
+`Harness::Mcb::WebmcpMount.render_for(session)`:
+
+```ruby
+::Vv::Mcb::Gateway::WebmcpBridge.new(adapters: [
+  ::Vv::Mcb::Gateway::WebmcpBridge::McbAdapter.new(
+    app: McpApp.instance, websocket_url: McpApp.websocket_url_for(session)
+  ),
+  ::Vv::Visualize::Wamp::ProcedureRegistry::WebmcpAdapter.new(
+    registry: ::Vv::Visualize::Wamp::ProcedureRegistry.instance
+  )
+]).render_bridge_js(session_id: session.id)
+```
+
+MM relies on:
+
+- `WebmcpBridge.new(adapters:)` accepting an Array of adapter objects,
+  each responding to `each_tool` yielding hashes shaped
+  `{domain, action, description, input_schema, annotations, transport_descriptor}`.
+- `#render_bridge_js(session_id:)` returning a JS string suitable for
+  inline `<script>` mounting.
+- Tool-name normalisation to `mm.<domain>.<action>`. Collisions raise
+  `WebmcpBridge::NameCollision`.
+- The emitted JS exposing the global
+  `window.__vvMcbWebmcp = { controller, tools, transports }` so MM's
+  `vv-visualize--local-agent` controller (PLAN_0_93_0 Phase C) can read
+  the same registry without re-deriving it.
+- `WebmcpBridge::McbAdapter.new(app:, websocket_url:)` wrapping a
+  running `Server::App` and emitting `transport_descriptor:
+  { kind: "mcb_ws", url:, method: "action.invoke" }` per action.
+
+The bridge is browser-side: it emits JS, it does not invoke actions
+server-side. Invocations from the in-page JS round-trip back through
+the existing WebSocket transport `App` already serves (i.e. through
+the same path the existing `McpBridge` uses on the other side).
+
 ### `ctx` callback surface (from inside handlers)
 
 | Method | MM uses |
@@ -122,6 +198,16 @@ return-shape variance is what `Mm::LlmMock::ExtractText` decodes
 - **Tightening `id:` parameter validation** to reject
   reverse-DNS-shaped strings — MM's `ai.magenticmarket.substrate`
   identifier wouldn't pass.
+- **Removing `WebmcpBridge` or changing its `adapters:` array contract**
+  — `Harness::Mcb::WebmcpMount` constructs it by exact shape.
+- **Removing `Action#domain` or changing it to require a non-string
+  value** — every MM action declaration uses string domains; the
+  bridge's name-composition would break and `MissingDomain` would
+  raise on render.
+- **Changing the `__vvMcbWebmcp` window-global shape**
+  (`{controller, tools, transports}`) — the `vv-visualize--local-agent`
+  controller reads `transports` and `tools` to drive the Prompt API path.
+- **Removing `App#actions`** — `WebmcpBridge::McbAdapter` iterates it.
 
 ## What MM tolerates
 

@@ -22,4 +22,8 @@ RSpec.describe Vv::Mcb do
   it "exposes the Gateway::McpBridge entry point" do
     expect(Vv::Mcb::Gateway::McpBridge).to be_a(Class)
   end
+
+  it "exposes the Gateway::WebmcpBridge entry point" do
+    expect(Vv::Mcb::Gateway::WebmcpBridge).to be_a(Class)
+  end
 end
