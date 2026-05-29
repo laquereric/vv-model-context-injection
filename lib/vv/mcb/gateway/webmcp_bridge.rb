@@ -1,23 +1,35 @@
 # frozen_string_literal: true
 
-require "erb"
 require "json"
 require "set"
 
 module Vv
   module Mcb
     module Gateway
-      # Aggregates one or more in-substrate tool registries and emits a
-      # per-session JS bundle that calls `navigator.modelContext.registerTool`
-      # once per tool. Names are normalised to `mm.<domain>.<action>`.
+      # Aggregates one or more in-substrate tool registries into the merged,
+      # normalised tool catalogue (`collect_tools`). Names are normalised to
+      # `mm.<domain>.<action>`.
+      #
+      # PLAN_0_94_0 Phase C — the per-session bridge JS is NO LONGER server
+      # rendered. The transport clients + the registration loop ship in the
+      # application's STATIC bundle (`webmcp/js/bridge.js`, exporting
+      # `bootWebmcp`); the session-bound tool list arrives POST-HANDSHAKE over
+      # the authed carriage (the platform `GET /mcb/tools` endpoint serves
+      # `collect_tools`). The retired ERB render (`tools_json` + `session_id`
+      # inlined into `bridge.js.erb`) was the only server-rendered piece of the
+      # application body — `render_boot_snippet` now emits a tiny static
+      # `<script type="module">` that imports + calls `bootWebmcp`, carrying NO
+      # tools/session (those come over the wire).
       #
       # Architecture:
       #
       #   Vv::Mcb::Server::App actions ──┐
-      #                                   ├──> WebmcpBridge ──> bridge.js.erb
-      #   Vv::Visualize::Wamp procedures ─┘                       │
+      #                                   ├──> WebmcpBridge#collect_tools ─┐
+      #   Vv::Visualize::Wamp procedures ─┘                                │
+      #                                            GET /mcb/tools (authed) ─┘
+      #                                                           │ post-handshake
       #                                                           ▼
-      #                                            browser tab `navigator.modelContext`
+      #                       STATIC bridge.js `bootWebmcp` → navigator.modelContext
       #                                            ┌────────────┴────────────┐
       #                                            ▼                         ▼
       #                                Gemini in Chrome           LanguageModel({tools})
@@ -43,8 +55,10 @@ module Vv
       #     ),
       #     # ...
       #   ])
-      #   bridge.render_bridge_js(session_id: session.id)
-      #   # => "(function(){ ... })();"  -- inline as a <script> in the layout
+      #   bridge.collect_tools
+      #   # => [ { name: "mm.summary.substrate_summary", transport: {...} }, ... ]
+      #   # served post-handshake by the platform GET /mcb/tools endpoint;
+      #   # the STATIC bridge.js `bootWebmcp` fetches + registers them.
       #
       class WebmcpBridge
         # Raised when two adapters yield tools that compose to the same
@@ -57,7 +71,10 @@ module Vv
         # undeclared one would compose to `mm..<action>`.
         class MissingDomain < StandardError; end
 
-        TEMPLATE_PATH = File.expand_path("webmcp/js/bridge.js.erb", __dir__)
+        # The path the STATIC bridge module is served from at the app origin.
+        # Used by `render_boot_snippet` to import `bootWebmcp`. A consumer may
+        # override it if it hosts the asset elsewhere.
+        DEFAULT_BRIDGE_ASSET_PATH = "/js/webmcp-bridge.js"
 
         # @param adapters [Array<#each_tool>] one or more adapters yielding
         #   tool-hash entries.
@@ -65,15 +82,25 @@ module Vv
           @adapters = Array(adapters)
         end
 
-        # Render the per-session JS bridge.
-        # @param session_id [String]
-        # @return [String] JS source suitable for an inline <script> tag.
-        def render_bridge_js(session_id:)
-          tools = collect_tools
-          ERB.new(File.read(TEMPLATE_PATH), trim_mode: "-").result_with_hash(
-            tools_json: JSON.generate(tools),
-            session_id: session_id
-          )
+        # PLAN_0_94_0 Phase C — emit the tiny static boot snippet that wires the
+        # STATIC bridge module (`webmcp/js/bridge.js`) into the page. It carries
+        # NO `tools_json` / `session_id`: the bundle mints a handshake + fetches
+        # its session-bound tools client-side (`bootWebmcp` → POST
+        # /api/v1/web_sessions → GET /mcb/tools). This REPLACES the retired ERB
+        # server render — the only server-rendered piece of the app body.
+        #
+        # @param platform_origin [String] absolute platform base the bundle
+        #   dials for the handshake + tools fetch (e.g. "https://platform.example").
+        # @param asset_path [String] where the static bridge module is served.
+        # @return [String] a `<script type="module">…</script>` boot snippet,
+        #   inline-safe in the layout `<head>`.
+        def render_boot_snippet(platform_origin:, asset_path: DEFAULT_BRIDGE_ASSET_PATH)
+          <<~HTML
+            <script type="module">
+              import { bootWebmcp } from #{JSON.generate(asset_path)}
+              bootWebmcp({ platformOrigin: #{JSON.generate(platform_origin)} })
+            </script>
+          HTML
         end
 
         # Materialise the merged + normalised tool list. Public for tests +

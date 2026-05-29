@@ -88,36 +88,48 @@ RSpec.describe Vv::Mcb::Gateway::WebmcpBridge do
     end
   end
 
-  describe "#render_bridge_js" do
-    subject(:js) do
-      described_class.new(adapters: [mcb_adapter]).render_bridge_js(session_id: "sess-1")
+  # PLAN_0_94_0 Phase C — the per-session JS bridge is no longer server
+  # rendered. `render_boot_snippet` emits a tiny static <script type="module">
+  # that imports + calls `bootWebmcp` against the static bridge asset; it
+  # carries NO inlined tools / session id (those arrive post-handshake).
+  describe "#render_boot_snippet" do
+    subject(:snippet) do
+      described_class.new(adapters: [mcb_adapter])
+        .render_boot_snippet(platform_origin: "https://platform.example")
     end
 
-    it "embeds the session id" do
-      expect(js).to include('sessionId = "sess-1"')
+    it "emits a module <script> that imports bootWebmcp" do
+      expect(snippet).to include('<script type="module">')
+      expect(snippet).to match(/import \{ bootWebmcp \} from/)
     end
 
-    it "embeds the tool catalogue as JSON" do
-      json_blob = js[/const tools\s+=\s+(\[.*?\]);/m, 1]
-      expect(json_blob).not_to be_nil
-      parsed = JSON.parse(json_blob)
-      expect(parsed.map { |t| t["name"] }).to include(
-        "mm.summary.substrate_summary", "mm.notes.quick_note"
+    it "imports from the default static bridge asset path" do
+      expect(snippet).to include('"/js/webmcp-bridge.js"')
+    end
+
+    it "calls bootWebmcp with the platform origin" do
+      expect(snippet).to include('bootWebmcp({ platformOrigin: "https://platform.example" })')
+    end
+
+    it "honours an explicit asset_path override" do
+      out = described_class.new(adapters: [mcb_adapter]).render_boot_snippet(
+        platform_origin: "https://platform.example", asset_path: "/assets/wmb.js"
       )
+      expect(out).to include('"/assets/wmb.js"')
     end
 
-    it "registers a capability gate for navigator.modelContext" do
-      expect(js).to include('"modelContext" in navigator')
+    it "does NOT inline a server-rendered tool list (Phase C invariant)" do
+      expect(snippet).not_to include("const tools")
+      expect(snippet).not_to include("mm.summary.substrate_summary")
     end
 
-    it "calls registerTool inside an AbortController.signal scope" do
-      expect(js).to include("new AbortController()")
-      expect(js).to include("navigator.modelContext.registerTool")
-      expect(js).to include("{ signal: controller.signal }")
+    it "does NOT inline a session id" do
+      expect(snippet).not_to match(/sessionId\s*=/)
     end
 
-    it "exposes window.__vvMcbWebmcp for downstream consumers" do
-      expect(js).to include("window.__vvMcbWebmcp")
+    it "no longer renders the retired bridge.js.erb (no transport-class source)" do
+      expect(snippet).not_to include("navigator.modelContext.registerTool")
+      expect(snippet).not_to include("new AbortController()")
     end
   end
 end

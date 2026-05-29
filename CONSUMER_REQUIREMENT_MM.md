@@ -129,20 +129,31 @@ MM relies on:
 
 ### `::Vv::Mcb::Gateway::WebmcpBridge`
 
-Added per PLAN_0_93_0 Phase A. Aggregates one or more registry adapters
-and emits a per-session JS bundle that calls
-`navigator.modelContext.registerTool` once per tool. MM constructs it in
-`Harness::Mcb::WebmcpMount.render_for(session)`:
+Added per PLAN_0_93_0 Phase A; **reshaped per `magentic-market-ai`
+PLAN_0_94_0 Phase C** (static bridge + post-handshake tools). Aggregates
+one or more registry adapters into the merged, normalised tool catalogue
+(`#collect_tools`). The per-session JS bridge is **no longer server
+rendered** — the transport clients + the registration loop ship in the
+application's STATIC bundle (`webmcp/js/bridge.js`, exporting
+`bootWebmcp`), and the session-bound tool list arrives **post-handshake**
+over the authed carriage (MM's platform `GET /mcb/tools` endpoint serves
+`#collect_tools`). MM constructs the bridge in `Harness::Mcb::WebmcpMount`:
 
 ```ruby
-::Vv::Mcb::Gateway::WebmcpBridge.new(adapters: [
+bridge = ::Vv::Mcb::Gateway::WebmcpBridge.new(adapters: [
   ::Vv::Mcb::Gateway::WebmcpBridge::McbAdapter.new(
-    app: McpApp.instance, websocket_url: McpApp.websocket_url_for(session)
+    app: McpApp.instance, websocket_url: McpApp.websocket_url_for(session),
+    token: handshake_token, origin: platform_origin
   ),
-  ::Vv::Visualize::Wamp::ProcedureRegistry::WebmcpAdapter.new(
-    registry: ::Vv::Visualize::Wamp::ProcedureRegistry.instance
+  ::Vv::Visualize::Wamp::Procedures::WebmcpAdapter.new(
+    base: platform_origin, token: handshake_token, origin: platform_origin
   )
-]).render_bridge_js(session_id: session.id)
+])
+
+# app body (the authed layout) — STATIC-bridge boot snippet, no inlined tools:
+bridge.render_boot_snippet(platform_origin: platform_origin)
+# post-handshake (GET /mcb/tools) — the session-bound tool catalogue:
+bridge.collect_tools
 ```
 
 MM relies on:
@@ -150,22 +161,38 @@ MM relies on:
 - `WebmcpBridge.new(adapters:)` accepting an Array of adapter objects,
   each responding to `each_tool` yielding hashes shaped
   `{domain, action, description, input_schema, annotations, transport_descriptor}`.
-- `#render_bridge_js(session_id:)` returning a JS string suitable for
-  inline `<script>` mounting.
+- `#collect_tools` returning the merged, normalised `Array<Hash>` of
+  `mm.<domain>.<action>` entries (each with a `transport` descriptor
+  carrying url + token + origin). This is the **post-handshake** delivery
+  surface — MM's `GET /mcb/tools` returns it as JSON.
+- `#render_boot_snippet(platform_origin:, asset_path: "/js/webmcp-bridge.js")`
+  returning a tiny `<script type="module">` that imports + calls
+  `bootWebmcp({ platformOrigin })` — inline-safe in the layout `<head>`,
+  carrying **NO** `tools_json` / `session_id` (those arrive post-handshake).
 - Tool-name normalisation to `mm.<domain>.<action>`. Collisions raise
   `WebmcpBridge::NameCollision`.
-- The emitted JS exposing the global
-  `window.__vvMcbWebmcp = { controller, tools, transports }` so MM's
-  `vv-visualize--local-agent` controller (PLAN_0_93_0 Phase C) can read
-  the same registry without re-deriving it.
-- `WebmcpBridge::McbAdapter.new(app:, websocket_url:)` wrapping a
-  running `Server::App` and emitting `transport_descriptor:
-  { kind: "mcb_ws", url:, method: "action.invoke" }` per action.
+- The STATIC bridge (`webmcp/js/bridge.js`) exposing the global
+  `window.__vvMcbWebmcp = { controller, tools, transports, sessionId }`
+  after `bootWebmcp` resolves (or `{ unavailable: true, ... }` on a missing
+  WebMCP / failed handshake), so MM's `vv-visualize--local-agent`
+  controller (PLAN_0_93_0 Phase C) can read the same registry without
+  re-deriving it. MM serves the static module from `server/public/js/
+  webmcp-bridge.js` (a copy of the gem's `webmcp/js/bridge.js`).
+- `WebmcpBridge::McbAdapter.new(app:, websocket_url:, token:, origin:)`
+  wrapping a running `Server::App` and emitting `transport_descriptor:
+  { kind: "mcb_ws", url:, method: "action.invoke"[, token:, origin:] }`
+  per action.
 
-The bridge is browser-side: it emits JS, it does not invoke actions
-server-side. Invocations from the in-page JS round-trip back through
-the existing WebSocket transport `App` already serves (i.e. through
-the same path the existing `McpBridge` uses on the other side).
+The bridge is browser-side: it emits the boot snippet + the tool
+catalogue, it does not invoke actions server-side. Invocations from the
+static bundle round-trip back through the existing WebSocket transport
+`App` already serves (i.e. through the same path the existing `McpBridge`
+uses on the other side).
+
+> **Retired:** `#render_bridge_js(session_id:)` (the ERB server render that
+> inlined `tools_json` + `session_id`) was removed in PLAN_0_94_0 Phase C.
+> Consumers must boot the static bridge (`render_boot_snippet`) and serve the
+> tool list post-handshake (`collect_tools` via `GET /mcb/tools`).
 
 ### `ctx` callback surface (from inside handlers)
 
@@ -200,13 +227,24 @@ return-shape variance is what `Mm::LlmMock::ExtractText` decodes
   identifier wouldn't pass.
 - **Removing `WebmcpBridge` or changing its `adapters:` array contract**
   — `Harness::Mcb::WebmcpMount` constructs it by exact shape.
+- **Removing `#collect_tools` or changing its `Array<Hash>` shape** — MM's
+  `GET /mcb/tools` (PLAN_0_94_0 Phase C) serves it as the post-handshake
+  tool catalogue.
+- **Removing `#render_boot_snippet` or changing its signature
+  (`platform_origin:`, `asset_path:`)** — `WebmcpMount#render_for` emits the
+  app body's WebMCP boot from it.
+- **Changing `bootWebmcp`'s boot contract** (`POST /api/v1/web_sessions` →
+  `GET /mcb/tools?token=&origin=`, or the `window.__vvMcbWebmcp` shape it
+  assigns) — MM's static bundle + the `vv-visualize--local-agent` controller
+  depend on it.
 - **Removing `Action#domain` or changing it to require a non-string
   value** — every MM action declaration uses string domains; the
   bridge's name-composition would break and `MissingDomain` would
   raise on render.
 - **Changing the `__vvMcbWebmcp` window-global shape**
-  (`{controller, tools, transports}`) — the `vv-visualize--local-agent`
-  controller reads `transports` and `tools` to drive the Prompt API path.
+  (`{controller, tools, transports, sessionId}`) — the
+  `vv-visualize--local-agent` controller reads `transports` and `tools` to
+  drive the Prompt API path.
 - **Removing `App#actions`** — `WebmcpBridge::McbAdapter` iterates it.
 
 ## What MM tolerates
@@ -235,4 +273,5 @@ return-shape variance is what `Mm::LlmMock::ExtractText` decodes
 
 ## Last reviewed
 
-2026-05-25 against MM substrate commit `87d84cf` per `docs/plans/PLAN_0_92_0.md` (Phase A).
+2026-05-29 against MM substrate per `docs/plans/PLAN_0_94_0.md` (Phase C — static
+bridge + post-handshake tools; `render_bridge_js` retired → `render_boot_snippet`).
