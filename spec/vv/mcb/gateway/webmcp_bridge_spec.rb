@@ -56,6 +56,26 @@ RSpec.describe Vv::Mcb::Gateway::WebmcpBridge do
       end
     end
 
+    context "with a token + origin (PLAN_0_94_0 Phase B)" do
+      let(:authed_adapter) do
+        Vv::Mcb::Gateway::WebmcpBridge::McbAdapter.new(
+          app: app, websocket_url: "wss://example.test/mcb",
+          token: "whs_abc", origin: "https://app.example"
+        )
+      end
+
+      subject(:tools) { described_class.new(adapters: [authed_adapter]).collect_tools }
+
+      it "includes the token + origin in every mcb_ws descriptor" do
+        tools.each do |t|
+          expect(t[:transport]).to eq(
+            kind: "mcb_ws", url: "wss://example.test/mcb", method: "action.invoke",
+            token: "whs_abc", origin: "https://app.example"
+          )
+        end
+      end
+    end
+
     it "raises MissingDomain when an action has no domain set" do
       app.action("orphan").describe("no domain").handler { |_i, _c| {} }
       expect { described_class.new(adapters: [mcb_adapter]).collect_tools }
